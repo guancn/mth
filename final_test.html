@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>漠河-内蒙古边境自驾探险之旅 | 优化版地图</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 百度地图API -->
+    <script type="text/javascript" src="https://api.map.baidu.com/api?v=3.0&ak=N4BtpP9TDw5VDImqI9oEazOeiPlPQtoH"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            background-color: #f0f4f8;
+        }
+        
+        #baidu-map {
+            width: 100%;
+            height: 70vh;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        @media (max-width: 768px) {
+            #baidu-map {
+                height: 60vh;
+            }
+        }
+        
+        .map-controls {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .map-btn {
+            background-color: #003f5c;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+        
+        .map-btn:hover {
+            background-color: #665191;
+            transform: translateY(-1px);
+        }
+        
+        .map-btn.active {
+            background-color: #f95d6a;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .map-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* 地图加载状态 */
+        .map-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            z-index: 10;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .map-error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #fee;
+            border: 1px solid #fcc;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            z-index: 10;
+            max-width: 80%;
+        }
+        
+        /* 加载动画 */
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #003f5c;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* 路线图例 */
+        .map-legend {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 4px;
+            border-radius: 2px;
+        }
+        
+        /* 地图标记样式增强 */
+        .BMap_Marker {
+            transition: transform 0.2s ease;
+        }
+        
+        .BMap_Marker:hover {
+            transform: scale(1.1);
+        }
+        
+        /* 信息窗口样式 */
+        .BMap_bubble_title {
+            color: #003f5c !important;
+            font-weight: bold !important;
+        }
+        
+        .BMap_bubble_content {
+            background: #f8f9fa !important;
+            border-radius: 4px !important;
+        }
+        
+        /* 状态指示器 */
+        .status-indicator {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            z-index: 5;
+        }
+        
+        /* 路线信息面板 */
+        .route-info {
+            background: white;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .route-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 0.25rem;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #003f5c;
+        }
+        
+        .stat-label {
+            font-size: 0.875rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <header class="bg-[#003f5c] text-white text-center py-8 px-4">
+        <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight mb-2">漠河-内蒙古边境自驾探险之旅</h1>
+        <p class="text-lg text-gray-300 max-w-3xl mx-auto">优化版交互式路线图 - 真实导航路线规划</p>
+    </header>
+
+    <main class="container mx-auto p-4 md:p-6">
+        
+        <section id="interactive-map" class="bg-white rounded-lg shadow-md p-4 md:p-6 mb-8">
+            <h2 class="text-2xl font-bold text-center mb-2 text-[#003f5c]">交互式路线图</h2>
+            <p class="text-center text-gray-600 mb-6">点击地图上的站点查看详细信息，支持真实导航路线规划</p>
+            
+            <div class="map-controls">
+                <button class="map-btn active" onclick="showFullRoute()" id="btn-full">完整路线</button>
+                <button class="map-btn" onclick="showDayRoute(1)" id="btn-day1">Day 1</button>
+                <button class="map-btn" onclick="showDayRoute(2)" id="btn-day2">Day 2</button>
+                <button class="map-btn" onclick="showDayRoute(3)" id="btn-day3">Day 3</button>
+                <button class="map-btn" onclick="showDayRoute(4)" id="btn-day4">Day 4</button>
+                <button class="map-btn" onclick="showDayRoute(5)" id="btn-day5">Day 5</button>
+                <button class="map-btn" onclick="showDayRoute(6)" id="btn-day6">Day 6</button>
+                <button class="map-btn" onclick="showDayRoute(7)" id="btn-day7">Day 7</button>
+            </div>
+            
+            <div id="baidu-map">
+                <div id="mapLoading" class="map-loading">
+                    <div class="loading-spinner"></div>
+                    <p>正在加载地图...</p>
+                </div>
+                <div id="mapError" class="map-error" style="display: none;">
+                    <h3 class="text-red-600 font-bold mb-2">地图加载失败</h3>
+                    <p class="text-gray-700 mb-4">请检查网络连接或稍后重试</p>
+                    <button onclick="retryMapLoad()" class="bg-[#003f5c] text-white px-4 py-2 rounded">重新加载</button>
+                </div>
+                <div id="statusIndicator" class="status-indicator" style="display: none;"></div>
+            </div>
+            
+            <div class="map-legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #f95d6a;"></div>
+                    <span>主要站点</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #d45087;"></div>
+                    <span>兴趣点</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #665191;"></div>
+                    <span>完整路线</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ff7c43;"></div>
+                    <span>单日路线</span>
+                </div>
+            </div>
+            
+            <div id="routeInfo" class="route-info" style="display: none;">
+                <h3 class="font-bold text-lg mb-2">路线信息</h3>
+                <div id="routeStats" class="route-stats"></div>
+            </div>
+        </section>
+        
+        <section class="bg-white rounded-lg shadow-md p-4 md:p-6">
+            <h2 class="text-2xl font-bold text-center mb-4 text-[#003f5c]">功能说明</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div class="p-4 bg-blue-50 rounded-lg">
+                    <h4 class="font-bold text-blue-800 mb-2">🗺️ 真实导航路线</h4>
+                    <p class="text-blue-700">使用百度地图导航API规划真实道路路线，而非直线连接</p>
+                </div>
+                <div class="p-4 bg-green-50 rounded-lg">
+                    <h4 class="font-bold text-green-800 mb-2">📍 智能标记</h4>
+                    <p class="text-green-700">自定义标记图标，显示日期和站点信息，支持点击查看详情</p>
+                </div>
+                <div class="p-4 bg-purple-50 rounded-lg">
+                    <h4 class="font-bold text-purple-800 mb-2">📱 移动端优化</h4>
+                    <p class="text-purple-700">响应式设计，在手机和平板上都有良好的使用体验</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // 百度地图相关变量
+        let map;
+        let markers = [];
+        let polylines = [];
+        let currentRoute = null;
+        let mapInitialized = false;
+        let routeInfo = {};
+
+        // 行程数据
+        const tripData = [
+            { day: 1, name: '漠河市', weather: '5-18°C, 晴间多云', nextStop: '北红村', distance: 230, details: '航班于17:05抵达。当晚入住市区，为次日行程做准备。', lat: 52.9667, lon: 122.5000 },
+            { day: 2, name: '北红村', weather: '4-17°C, 晴朗', nextStop: '根河市', distance: 300, details: '探访中国最北的原始村庄，体验火炕民俗，观赏界江日落和璀璨星空。', lat: 53.6800, lon: 123.3600 },
+            { day: 3, name: '根河市', weather: '6-19°C, 多云', nextStop: '恩和乡', distance: 150, details: '抵达"中国冷极"，参观根河湿地，感受大兴安岭的生态之美。', lat: 50.7800, lon: 121.5100 },
+            { day: 4, name: '恩和乡', weather: '8-20°C, 晴', nextStop: '满洲里', distance: 334, details: '沉浸在俄罗斯民族乡的独特风情中，品尝俄式美食，欣赏木刻楞建筑。', lat: 51.0400, lon: 119.8600 },
+            { day: 5, name: '满洲里', weather: '10-22°C, 晴朗', nextStop: '满洲里/草原', distance: '~100', details: '从恩和出发，途经室韦感受中俄边境风光，最终抵达中俄蒙三国交界的口岸城市。', lat: 49.6000, lon: 117.3800 },
+            { day: 6, name: '满洲里', weather: '10-22°C, 晴朗', nextStop: '海拉尔', distance: 200, details: '探索套娃广场与国门，深度体验呼伦贝尔草原的辽阔。', lat: 49.6000, lon: 117.3800 },
+            { day: 7, name: '海拉尔', weather: '9-21°C, 多云转晴', nextStop: '返程', distance: 0, details: '欣赏莫尔格勒河"天下第一曲水"后，从海拉尔机场返程，结束旅途。', lat: 49.2000, lon: 119.7500 }
+        ];
+
+        const poiData = [
+            { name: '室韦', day: 5, details: '中俄边境风情，漫步额尔古纳河畔，感受中俄文化交融。', lat: 51.3400, lon: 119.9700 }
+        ];
+
+        // 地图初始化函数
+        function initMap() {
+            try {
+                console.log('开始初始化地图...');
+                
+                if (typeof BMap === 'undefined') {
+                    throw new Error('百度地图API未加载');
+                }
+
+                map = new BMap.Map("baidu-map");
+                console.log('地图对象创建成功');
+                
+                // 设置地图中心点
+                const centerPoint = new BMap.Point(122.5000, 52.9667);
+                map.centerAndZoom(centerPoint, 6);
+                
+                // 添加地图控件
+                map.addControl(new BMap.NavigationControl());
+                map.addControl(new BMap.ScaleControl());
+                map.addControl(new BMap.OverviewMapControl());
+                map.addControl(new BMap.MapTypeControl());
+                
+                // 启用滚轮缩放
+                map.enableScrollWheelZoom(true);
+                
+                // 隐藏加载状态
+                document.getElementById('mapLoading').style.display = 'none';
+                mapInitialized = true;
+                
+                console.log('地图初始化完成');
+                
+                // 显示完整路线
+                showFullRoute();
+                
+            } catch (error) {
+                console.error('地图初始化失败:', error);
+                showMapError();
+            }
+        }
+
+        // 显示地图错误
+        function showMapError() {
+            document.getElementById('mapLoading').style.display = 'none';
+            document.getElementById('mapError').style.display = 'block';
+        }
+
+        // 重试地图加载
+        function retryMapLoad() {
+            document.getElementById('mapError').style.display = 'none';
+            document.getElementById('mapLoading').style.display = 'block';
+            
+            setTimeout(() => {
+                initMap();
+            }, 1000);
+        }
+
+        // 显示状态指示器
+        function showStatus(message, type = 'info') {
+            const indicator = document.getElementById('statusIndicator');
+            indicator.textContent = message;
+            indicator.style.display = 'block';
+            
+            if (type === 'error') {
+                indicator.style.background = 'rgba(220, 38, 38, 0.9)';
+            } else if (type === 'success') {
+                indicator.style.background = 'rgba(34, 197, 94, 0.9)';
+            } else {
+                indicator.style.background = 'rgba(0, 0, 0, 0.7)';
+            }
+            
+            setTimeout(() => {
+                indicator.style.display = 'none';
+            }, 3000);
+        }
+
+        // 清除地图上的所有标记和路线
+        function clearMap() {
+            if (!mapInitialized) return;
+            
+            markers.forEach(marker => map.removeOverlay(marker));
+            polylines.forEach(polyline => map.removeOverlay(polyline));
+            markers = [];
+            polylines = [];
+            
+            // 隐藏路线信息
+            document.getElementById('routeInfo').style.display = 'none';
+        }
+
+        // 创建自定义标记图标
+        function createCustomMarker(point, isPOI = false) {
+            const day = point.day || '';
+            const name = point.name;
+            
+            // 创建SVG图标
+            const svgIcon = `
+                <svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="20" cy="20" r="18" fill="${isPOI ? '#d45087' : '#f95d6a'}" stroke="white" stroke-width="3"/>
+                    <text x="20" y="15" text-anchor="middle" fill="white" font-size="10" font-weight="bold">${day ? 'Day ' + day : 'POI'}</text>
+                    <text x="20" y="28" text-anchor="middle" fill="white" font-size="8" font-weight="bold">${name.substring(0, 2)}</text>
+                </svg>
+            `;
+            
+            // 创建自定义图标
+            const icon = new BMap.Icon('data:image/svg+xml;base64,' + btoa(svgIcon), new BMap.Size(40, 40), {
+                imageOffset: new BMap.Size(0, 0),
+                anchor: new BMap.Size(20, 20)
+            });
+            
+            return icon;
+        }
+
+        // 显示完整路线
+        function showFullRoute() {
+            if (!mapInitialized) return;
+            
+            clearMap();
+            updateActiveButton('完整路线');
+            showStatus('正在加载完整路线...');
+            
+            try {
+                // 添加所有站点标记
+                tripData.forEach((point, index) => {
+                    const customIcon = createCustomMarker(point);
+                    const marker = new BMap.Marker(new BMap.Point(point.lon, point.lat), {
+                        icon: customIcon
+                    });
+                    map.addOverlay(marker);
+                    markers.push(marker);
+                    
+                    // 添加信息窗口
+                    const infoWindow = new BMap.InfoWindow(`
+                        <div style="padding: 15px; min-width: 250px;">
+                            <h4 style="margin: 0 0 8px 0; color: #003f5c; font-size: 16px;">${point.name} (Day ${point.day})</h4>
+                            <div style="background: #f8f9fa; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+                                <p style="margin: 3px 0; font-size: 13px;"><strong>天气:</strong> ${point.weather}</p>
+                                <p style="margin: 3px 0; font-size: 13px;"><strong>下一站:</strong> ${point.nextStop}</p>
+                                <p style="margin: 3px 0; font-size: 13px;"><strong>距离:</strong> ${point.distance} km</p>
+                            </div>
+                            <p style="margin: 0; font-size: 13px; color: #666;">${point.details}</p>
+                        </div>
+                    `);
+                    
+                    marker.addEventListener("click", function() {
+                        map.openInfoWindow(infoWindow, new BMap.Point(point.lon, point.lat));
+                    });
+                });
+                
+                // 添加兴趣点标记
+                poiData.forEach(point => {
+                    const customIcon = createCustomMarker(point, true);
+                    const marker = new BMap.Marker(new BMap.Point(point.lon, point.lat), {
+                        icon: customIcon
+                    });
+                    map.addOverlay(marker);
+                    markers.push(marker);
+                    
+                    const infoWindow = new BMap.InfoWindow(`
+                        <div style="padding: 15px; min-width: 250px;">
+                            <h4 style="margin: 0 0 8px 0; color: #d45087; font-size: 16px;">${point.name}</h4>
+                            <div style="background: #f8f9fa; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+                                <p style="margin: 3px 0; font-size: 13px;">${point.details}</p>
+                            </div>
+                        </div>
+                    `);
+                    
+                    marker.addEventListener("click", function() {
+                        map.openInfoWindow(infoWindow, new BMap.Point(point.lon, point.lat));
+                    });
+                });
+                
+                // 绘制导航路线
+                drawNavigationRoute(tripData, '完整路线');
+                
+                // 调整地图视野
+                const bounds = new BMap.Bounds(
+                    new BMap.Point(117.3800, 49.2000), // 海拉尔
+                    new BMap.Point(123.3600, 53.6800)  // 北红村
+                );
+                map.setViewport(bounds);
+                
+                showStatus(`完整路线加载完成，共 ${markers.length} 个站点`, 'success');
+                
+            } catch (error) {
+                console.error('显示完整路线失败:', error);
+                showStatus('路线加载失败，使用直线连接', 'error');
+                drawSimpleRoute(tripData);
+            }
+        }
+
+        // 绘制导航路线
+        function drawNavigationRoute(points, routeName) {
+            try {
+                console.log(`开始规划${routeName}...`);
+                
+                // 创建路线规划实例
+                const driving = new BMap.DrivingRoute(map, {
+                    renderOptions: {
+                        map: map,
+                        autoViewport: false
+                    },
+                    policy: 0  // 使用数字0代替BMAP_DRIVING_POLICY_LEAST_TIME
+                });
+                
+                // 构建途经点数组
+                const waypoints = [];
+                for (let i = 1; i < points.length - 1; i++) {
+                    waypoints.push(new BMap.Point(points[i].lon, points[i].lat));
+                }
+                
+                // 设置起点和终点
+                const startPoint = new BMap.Point(points[0].lon, points[0].lat);
+                const endPoint = new BMap.Point(points[points.length - 1].lon, points[points.length - 1].lat);
+                
+                console.log('起点:', startPoint);
+                console.log('终点:', endPoint);
+                console.log('途经点数量:', waypoints.length);
+                
+                // 规划路线
+                driving.search(startPoint, endPoint, {
+                    waypoints: waypoints
+                });
+                
+                // 监听路线规划完成事件
+                driving.setSearchCompleteCallback(function(results) {
+                    console.log('路线规划完成，状态:', driving.getStatus());
+                    
+                    if (driving.getStatus() == BMAP_STATUS_SUCCESS) {
+                        // 获取路线信息
+                        const plan = results.getPlan(0);
+                        const route = plan.getRoute(0);
+                        const path = route.getPath();
+                        
+                        console.log('路线规划成功，路径点数:', path.length);
+                        
+                        // 创建自定义样式的路线
+                        const polyline = new BMap.Polyline(path, {
+                            strokeColor: routeName === '完整路线' ? "#665191" : "#ff7c43",
+                            strokeWeight: 4,
+                            strokeOpacity: 0.8,
+                            strokeStyle: "solid"
+                        });
+                        
+                        map.addOverlay(polyline);
+                        polylines.push(polyline);
+                        
+                        // 添加路线信息
+                        const distance = plan.getDistance(true);
+                        const duration = plan.getDuration(true);
+                        
+                        console.log('路线距离:', distance);
+                        console.log('预计时间:', duration);
+                        
+                        // 显示路线统计信息
+                        showRouteStats({
+                            distance: distance,
+                            duration: duration,
+                            stops: points.length,
+                            routeName: routeName
+                        });
+                        
+                        showStatus(`${routeName}规划完成，距离: ${distance}`, 'success');
+                        
+                    } else {
+                        console.error('路线规划失败，状态:', driving.getStatus());
+                        // 如果导航路线规划失败，使用直线连接
+                        drawSimpleRoute(points);
+                        showStatus(`${routeName}导航规划失败，使用直线连接`, 'error');
+                    }
+                });
+                
+            } catch (error) {
+                console.error('导航路线绘制失败:', error);
+                // 如果出错，使用直线连接
+                drawSimpleRoute(points);
+                showStatus(`${routeName}路线绘制失败，使用直线连接`, 'error');
+            }
+        }
+
+        // 绘制简化路线（备用方案）
+        function drawSimpleRoute(points) {
+            try {
+                console.log('使用直线连接路线...');
+                const routePoints = points.map(point => new BMap.Point(point.lon, point.lat));
+                
+                // 创建路线
+                const polyline = new BMap.Polyline(routePoints, {
+                    strokeColor: "#665191",
+                    strokeWeight: 4,
+                    strokeOpacity: 0.8,
+                    strokeStyle: "solid"
+                });
+                
+                map.addOverlay(polyline);
+                polylines.push(polyline);
+                
+                console.log('直线路线绘制完成');
+                
+            } catch (error) {
+                console.error('直线路线绘制失败:', error);
+            }
+        }
+
+        // 显示路线统计信息
+        function showRouteStats(stats) {
+            const routeInfo = document.getElementById('routeInfo');
+            const routeStats = document.getElementById('routeStats');
+            
+            routeStats.innerHTML = `
+                <div class="stat-item">
+                    <div class="stat-value">${stats.distance}</div>
+                    <div class="stat-label">总距离</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${stats.duration}</div>
+                    <div class="stat-label">预计时间</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${stats.stops}</div>
+                    <div class="stat-label">站点数量</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${stats.routeName}</div>
+                    <div class="stat-label">路线类型</div>
+                </div>
+            `;
+            
+            routeInfo.style.display = 'block';
+        }
+
+        // 显示指定日期的路线
+        function showDayRoute(day) {
+            if (!mapInitialized) return;
+            
+            clearMap();
+            updateActiveButton(`Day ${day}`);
+            showStatus(`正在加载 Day ${day} 路线...`);
+            
+            const dayData = tripData.filter(point => point.day === day);
+            if (dayData.length === 0) {
+                showStatus(`Day ${day} 没有路线数据`, 'error');
+                return;
+            }
+            
+            try {
+                // 添加当日站点标记
+                dayData.forEach(point => {
+                    const customIcon = createCustomMarker(point);
+                    const marker = new BMap.Marker(new BMap.Point(point.lon, point.lat), {
+                        icon: customIcon
+                    });
+                    map.addOverlay(marker);
+                    markers.push(marker);
+                    
+                    const infoWindow = new BMap.InfoWindow(`
+                        <div style="padding: 15px; min-width: 250px;">
+                            <h4 style="margin: 0 0 8px 0; color: #003f5c; font-size: 16px;">${point.name} (Day ${point.day})</h4>
+                            <div style="background: #f8f9fa; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+                                <p style="margin: 3px 0; font-size: 13px;"><strong>天气:</strong> ${point.weather}</p>
+                                <p style="margin: 3px 0; font-size: 13px;"><strong>下一站:</strong> ${point.nextStop}</p>
+                                <p style="margin: 3px 0; font-size: 13px;"><strong>距离:</strong> ${point.distance} km</p>
+                            </div>
+                            <p style="margin: 0; font-size: 13px; color: #666;">${point.details}</p>
+                        </div>
+                    `);
+                    
+                    marker.addEventListener("click", function() {
+                        map.openInfoWindow(infoWindow, new BMap.Point(point.lon, point.lat));
+                    });
+                });
+                
+                // 如果当日有多个站点，绘制路线
+                if (dayData.length > 1) {
+                    drawNavigationRoute(dayData, `Day ${day} 路线`);
+                } else {
+                    // 单站点，显示统计信息
+                    showRouteStats({
+                        distance: dayData[0].distance + ' km',
+                        duration: '当日停留',
+                        stops: 1,
+                        routeName: `Day ${day}`
+                    });
+                }
+                
+                // 调整地图视野
+                if (dayData.length > 0) {
+                    const centerPoint = new BMap.Point(dayData[0].lon, dayData[0].lat);
+                    map.centerAndZoom(centerPoint, 8);
+                }
+                
+                showStatus(`Day ${day} 路线加载完成`, 'success');
+                
+            } catch (error) {
+                console.error('显示单日路线失败:', error);
+                showStatus(`Day ${day} 路线加载失败`, 'error');
+            }
+        }
+
+        // 更新活动按钮状态
+        function updateActiveButton(buttonText) {
+            document.querySelectorAll('.map-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.textContent.includes(buttonText)) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
+        // 页面加载完成后初始化地图
+        window.onload = function() {
+            setTimeout(initMap, 1000);
+        };
+    </script>
+</body>
+</html> 
