@@ -509,12 +509,27 @@
         // 地图初始化函数
         function initMap() {
             try {
+                console.log('开始初始化地图...');
+                
                 // 检查百度地图API是否可用
                 if (typeof BMap === 'undefined') {
-                    throw new Error('百度地图API未加载');
+                    console.error('百度地图API未加载');
+                    showMapError();
+                    return;
                 }
 
+                console.log('百度地图API已加载，开始创建地图...');
+                
+                // 检查地图容器是否存在
+                const mapContainer = document.getElementById("baidu-map");
+                if (!mapContainer) {
+                    console.error('地图容器不存在');
+                    showMapError();
+                    return;
+                }
+                
                 map = new BMap.Map("baidu-map");
+                console.log('地图对象创建成功');
                 
                 // 设置地图中心点为漠河市
                 const centerPoint = new BMap.Point(122.5000, 52.9667);
@@ -528,6 +543,8 @@
                 
                 // 启用滚轮缩放
                 map.enableScrollWheelZoom(true);
+                
+                console.log('地图初始化完成');
                 
                 // 隐藏加载状态
                 document.getElementById('mapLoading').style.display = 'none';
@@ -546,6 +563,34 @@
         function showMapError() {
             document.getElementById('mapLoading').style.display = 'none';
             document.getElementById('mapError').style.display = 'block';
+            console.error('地图加载失败，显示错误界面');
+            
+            // 显示基本的行程信息作为备用
+            showBasicTripInfo();
+        }
+        
+        // 显示基本行程信息（备用方案）
+        function showBasicTripInfo() {
+            const mapContainer = document.getElementById('baidu-map');
+            if (mapContainer) {
+                mapContainer.innerHTML = `
+                    <div style="padding: 2rem; text-align: center; background: white; border-radius: 0.5rem;">
+                        <h3 style="color: #003f5c; margin-bottom: 1rem;">行程概览</h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                            <div style="padding: 1rem; background: #f8f9fa; border-radius: 0.25rem;">
+                                <strong>总里程:</strong> 1327公里
+                            </div>
+                            <div style="padding: 1rem; background: #f8f9fa; border-radius: 0.25rem;">
+                                <strong>行程时长:</strong> 7天6夜
+                            </div>
+                            <div style="padding: 1rem; background: #f8f9fa; border-radius: 0.25rem;">
+                                <strong>核心区域:</strong> 漠河、大兴安岭、呼伦贝尔
+                            </div>
+                        </div>
+                        <p style="margin-top: 1rem; color: #666;">地图加载失败，但您可以查看下方的详细行程信息</p>
+                    </div>
+                `;
+            }
         }
 
         // 重试地图加载
@@ -913,9 +958,19 @@
             });
             
             // 延迟初始化地图，确保API加载完成
-            setTimeout(() => {
+            console.log('页面加载完成，准备初始化地图...');
+            
+            // 检查百度地图API是否已加载
+            if (typeof BMap !== 'undefined') {
+                console.log('百度地图API已加载，立即初始化');
                 initMap();
-            }, 1000);
+            } else {
+                console.log('百度地图API未加载，等待1秒后重试');
+                setTimeout(() => {
+                    console.log('开始尝试初始化地图...');
+                    initMap();
+                }, 1000);
+            }
 
             // Generate Baidu Map Link
             const baiduMapLink = document.getElementById('baiduMapLink');
