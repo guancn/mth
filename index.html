@@ -574,22 +574,40 @@
             const day = point.day || '';
             const name = point.name;
             
-            // 创建SVG图标
-            const svgIcon = `
-                <svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="20" cy="20" r="18" fill="${isPOI ? '#d45087' : '#f95d6a'}" stroke="white" stroke-width="3"/>
-                    <text x="20" y="15" text-anchor="middle" fill="white" font-size="10" font-weight="bold">Day ${day}</text>
-                    <text x="20" y="28" text-anchor="middle" fill="white" font-size="8" font-weight="bold">${name.substring(0, 2)}</text>
-                </svg>
-            `;
+            // 使用简单的数字标识，避免中文字符编码问题
+            const dayText = day ? `D${day}` : '';
+            const nameText = name.substring(0, 2).replace(/[^\x00-\x7F]/g, ''); // 只保留ASCII字符
             
-            // 创建自定义图标
-            const icon = new BMap.Icon(svgIcon, new BMap.Size(40, 40), {
-                imageOffset: new BMap.Size(0, 0),
-                anchor: new BMap.Size(20, 20)
-            });
+            // 创建SVG字符串 - 调整图标大小为30x30
+            const svgString = isPOI ? 
+                `<svg width="30" height="30" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="15" cy="15" r="12" fill="#d45087" stroke="white" stroke-width="2"/>
+                    <text x="15" y="12" text-anchor="middle" fill="white" font-size="8" font-weight="bold">POI</text>
+                    <text x="15" y="22" text-anchor="middle" fill="white" font-size="6" font-weight="bold">${nameText || 'P'}</text>
+                </svg>` :
+                `<svg width="30" height="30" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="15" cy="15" r="12" fill="#f95d6a" stroke="white" stroke-width="2"/>
+                    <text x="15" y="12" text-anchor="middle" fill="white" font-size="8" font-weight="bold">${dayText}</text>
+                    <text x="15" y="22" text-anchor="middle" fill="white" font-size="6" font-weight="bold">${nameText || 'S'}</text>
+                </svg>`;
             
-            return icon;
+            try {
+                // 使用encodeURIComponent确保编码正确
+                const encodedSvg = encodeURIComponent(svgString);
+                const iconUrl = 'data:image/svg+xml;charset=utf-8,' + encodedSvg;
+                
+                // 创建自定义图标 - 调整大小为30x30
+                const icon = new BMap.Icon(iconUrl, new BMap.Size(30, 30), {
+                    imageOffset: new BMap.Size(0, 0),
+                    anchor: new BMap.Size(15, 15)
+                });
+                
+                return icon;
+            } catch (error) {
+                console.error('图标创建失败:', error);
+                // 如果自定义图标失败，使用默认图标
+                return null;
+            }
         }
 
         // 显示完整路线
@@ -599,12 +617,16 @@
             clearMap();
             updateActiveButton('完整路线');
             
+            console.log('开始显示完整路线...');
+            console.log('tripData:', tripData);
+            console.log('poiData:', poiData);
+            
             // 添加所有站点标记
             tripData.forEach((point, index) => {
                 const customIcon = createCustomMarker(point);
-                const marker = new BMap.Marker(new BMap.Point(point.lon, point.lat), {
-                    icon: customIcon
-                });
+                const marker = new BMap.Marker(new BMap.Point(point.lon, point.lat), 
+                    customIcon ? { icon: customIcon } : {}
+                );
                 map.addOverlay(marker);
                 markers.push(marker);
                 
@@ -632,9 +654,9 @@
             // 添加兴趣点标记
             poiData.forEach(point => {
                 const customIcon = createCustomMarker(point, true);
-                const marker = new BMap.Marker(new BMap.Point(point.lon, point.lat), {
-                    icon: customIcon
-                });
+                const marker = new BMap.Marker(new BMap.Point(point.lon, point.lat), 
+                    customIcon ? { icon: customIcon } : {}
+                );
                 map.addOverlay(marker);
                 markers.push(marker);
                 
@@ -658,27 +680,6 @@
             
             // 绘制简化路线（避免API调用失败）
             drawSimpleRoute();
-        }
-
-        // 绘制简化路线
-        function drawSimpleRoute() {
-            try {
-                const points = tripData.map(point => new BMap.Point(point.lon, point.lat));
-                
-                // 创建路线
-                const polyline = new BMap.Polyline(points, {
-                    strokeColor: "#665191",
-                    strokeWeight: 4,
-                    strokeOpacity: 0.8,
-                    strokeStyle: "solid"
-                });
-                
-                map.addOverlay(polyline);
-                polylines.push(polyline);
-                
-            } catch (error) {
-                console.error('路线绘制失败:', error);
-            }
             
             // 调整地图视野以显示所有点
             const bounds = new BMap.Bounds(
@@ -707,7 +708,7 @@
             } catch (error) {
                 console.error('路线绘制失败:', error);
             }
-        }
+
 
         // 显示指定日期的路线
         function showDayRoute(day) {
@@ -722,9 +723,9 @@
             // 添加当日站点标记
             dayData.forEach(point => {
                 const customIcon = createCustomMarker(point);
-                const marker = new BMap.Marker(new BMap.Point(point.lon, point.lat), {
-                    icon: customIcon
-                });
+                const marker = new BMap.Marker(new BMap.Point(point.lon, point.lat), 
+                    customIcon ? { icon: customIcon } : {}
+                );
                 map.addOverlay(marker);
                 markers.push(marker);
                 
