@@ -532,7 +532,7 @@
                 driving.setSearchCompleteCallback(function(results) {
                     console.log('路线规划完成，状态:', driving.getStatus());
                     
-                    if (driving.getStatus() == BMAP_STATUS_SUCCESS) {
+                    if (driving.getStatus() == 0) { // 使用数字0代替BMAP_STATUS_SUCCESS
                         // 获取路线信息
                         const plan = results.getPlan(0);
                         const route = plan.getRoute(0);
