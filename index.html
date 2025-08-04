@@ -94,11 +94,55 @@
             height: 60vh;
             border-radius: 0.5rem;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
         }
         @media (max-width: 768px) {
             #baidu-map {
                 height: 50vh;
             }
+        }
+        
+        /* 地图加载状态 */
+        .map-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 2rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            z-index: 10;
+        }
+        
+        .map-error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #fee;
+            border: 1px solid #fcc;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            z-index: 10;
+            max-width: 80%;
+        }
+        
+        /* 加载动画 */
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #003f5c;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
         .map-controls {
             display: flex;
@@ -123,6 +167,59 @@
         .map-btn.active {
             background-color: #f95d6a;
         }
+        .map-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        /* 路线图例 */
+        .map-legend {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 4px;
+            border-radius: 2px;
+        }
+        
+        /* 地图加载状态 */
+        .map-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 2rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            z-index: 10;
+        }
+        
+        .map-error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #fee;
+            border: 1px solid #fcc;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            z-index: 10;
+            max-width: 80%;
+        }
         
         /* 地图标记样式增强 */
         .BMap_Marker {
@@ -142,6 +239,44 @@
         .BMap_bubble_content {
             background: #f8f9fa !important;
             border-radius: 4px !important;
+        }
+        
+        /* 路线图例 */
+        .map-legend {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 4px;
+            border-radius: 2px;
+        }
+        
+        /* 加载动画 */
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #003f5c;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -168,7 +303,7 @@
             <h2 class="text-3xl font-bold text-center mb-8 text-[#003f5c]">旅程速览</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div class="stat-card">
-                    <span class="stat-number">1433</span>
+                    <span class="stat-number">1327</span>
                     <span class="stat-label">总里程 (公里)</span>
                 </div>
                 <div class="stat-card">
@@ -187,17 +322,46 @@
             <p class="text-center text-gray-600 mb-6">点击地图上的站点，查看详细信息、天气和距离。</p>
             
             <div class="map-controls">
-                <button class="map-btn active" onclick="showFullRoute()">完整路线</button>
-                <button class="map-btn" onclick="showDayRoute(1)">Day 1: 漠河</button>
-                <button class="map-btn" onclick="showDayRoute(2)">Day 2: 北红村</button>
-                <button class="map-btn" onclick="showDayRoute(3)">Day 3: 根河</button>
-                <button class="map-btn" onclick="showDayRoute(4)">Day 4: 恩和</button>
-                <button class="map-btn" onclick="showDayRoute(5)">Day 5: 满洲里</button>
-                <button class="map-btn" onclick="showDayRoute(6)">Day 6: 草原</button>
-                <button class="map-btn" onclick="showDayRoute(7)">Day 7: 海拉尔</button>
+                <button class="map-btn active" onclick="showFullRoute()" id="btn-full">完整路线</button>
+                <button class="map-btn" onclick="showDayRoute(1)" id="btn-day1">Day 1: 漠河</button>
+                <button class="map-btn" onclick="showDayRoute(2)" id="btn-day2">Day 2: 北红村</button>
+                <button class="map-btn" onclick="showDayRoute(3)" id="btn-day3">Day 3: 根河</button>
+                <button class="map-btn" onclick="showDayRoute(4)" id="btn-day4">Day 4: 恩和</button>
+                <button class="map-btn" onclick="showDayRoute(5)" id="btn-day5">Day 5: 满洲里</button>
+                <button class="map-btn" onclick="showDayRoute(6)" id="btn-day6">Day 6: 草原</button>
+                <button class="map-btn" onclick="showDayRoute(7)" id="btn-day7">Day 7: 海拉尔</button>
             </div>
             
-            <div id="baidu-map"></div>
+            <div id="baidu-map">
+                <div id="mapLoading" class="map-loading">
+                    <div class="loading-spinner"></div>
+                    <p>正在加载地图...</p>
+                </div>
+                <div id="mapError" class="map-error" style="display: none;">
+                    <h3 class="text-red-600 font-bold mb-2">地图加载失败</h3>
+                    <p class="text-gray-700 mb-4">请检查网络连接或稍后重试</p>
+                    <button onclick="retryMapLoad()" class="bg-[#003f5c] text-white px-4 py-2 rounded">重新加载</button>
+                </div>
+            </div>
+            
+            <div class="map-legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #f95d6a;"></div>
+                    <span>主要站点</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #d45087;"></div>
+                    <span>兴趣点</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #665191;"></div>
+                    <span>完整路线</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ff7c43;"></div>
+                    <span>单日路线</span>
+                </div>
+            </div>
             
             <div class="text-center mt-6">
                 <a id="baiduMapLink" href="#" target="_blank" class="inline-block bg-[#f95d6a] text-white font-bold py-3 px-6 rounded-lg hover:bg-[#d45087] transition-colors shadow-md">在百度地图上查看总路线</a>
@@ -307,7 +471,7 @@
                     <p class="text-sm text-gray-600">记录壮美风光，备足电池。</p>
                 </div>
                 <div class="flex flex-col items-center">
-                    <div class="text-4xl mb-2"> snacks </div>
+                    <div class="text-4xl mb-2">🍫</div>
                     <h4 class="font-bold">能量补给</h4>
                     <p class="text-sm text-gray-600">长途驾驶，准备零食和水。</p>
                 </div>
@@ -325,7 +489,9 @@
         let markers = [];
         let polylines = [];
         let currentRoute = null;
+        let mapInitialized = false;
 
+        // 修正后的行程数据 - 距离数据更准确
         const tripData = [
             { day: 1, name: '漠河市', weather: '5-18°C, 晴间多云', nextStop: '北红村', distance: 230, details: '航班于17:05抵达。当晚入住市区，为次日行程做准备。', lat: 52.9667, lon: 122.5000 },
             { day: 2, name: '北红村', weather: '4-17°C, 晴朗', nextStop: '根河市', distance: 300, details: '探访中国最北的原始村庄，体验火炕民俗，观赏界江日落和璀璨星空。', lat: 53.6800, lon: 123.3600 },
@@ -340,31 +506,63 @@
             { name: '室韦', day: 5, details: '中俄边境风情，漫步额尔古纳河畔，感受中俄文化交融。', lat: 51.3400, lon: 119.9700 }
         ];
 
-        // 初始化百度地图
+        // 地图初始化函数
         function initMap() {
-            // 注意：这里需要替换为您的百度地图API密钥
-            // 请访问 https://lbsyun.baidu.com/ 申请API密钥
-            map = new BMap.Map("baidu-map");
+            try {
+                // 检查百度地图API是否可用
+                if (typeof BMap === 'undefined') {
+                    throw new Error('百度地图API未加载');
+                }
+
+                map = new BMap.Map("baidu-map");
+                
+                // 设置地图中心点为漠河市
+                const centerPoint = new BMap.Point(122.5000, 52.9667);
+                map.centerAndZoom(centerPoint, 6);
+                
+                // 添加地图控件
+                map.addControl(new BMap.NavigationControl());
+                map.addControl(new BMap.ScaleControl());
+                map.addControl(new BMap.OverviewMapControl());
+                map.addControl(new BMap.MapTypeControl());
+                
+                // 启用滚轮缩放
+                map.enableScrollWheelZoom(true);
+                
+                // 隐藏加载状态
+                document.getElementById('mapLoading').style.display = 'none';
+                mapInitialized = true;
+                
+                // 显示完整路线
+                showFullRoute();
+                
+            } catch (error) {
+                console.error('地图初始化失败:', error);
+                showMapError();
+            }
+        }
+
+        // 显示地图错误
+        function showMapError() {
+            document.getElementById('mapLoading').style.display = 'none';
+            document.getElementById('mapError').style.display = 'block';
+        }
+
+        // 重试地图加载
+        function retryMapLoad() {
+            document.getElementById('mapError').style.display = 'none';
+            document.getElementById('mapLoading').style.display = 'block';
             
-            // 设置地图中心点为漠河市
-            const centerPoint = new BMap.Point(122.5000, 52.9667);
-            map.centerAndZoom(centerPoint, 6);
-            
-            // 添加地图控件
-            map.addControl(new BMap.NavigationControl());
-            map.addControl(new BMap.ScaleControl());
-            map.addControl(new BMap.OverviewMapControl());
-            map.addControl(new BMap.MapTypeControl());
-            
-            // 启用滚轮缩放
-            map.enableScrollWheelZoom(true);
-            
-            // 显示完整路线
-            showFullRoute();
+            // 延迟重试，避免频繁请求
+            setTimeout(() => {
+                initMap();
+            }, 1000);
         }
 
         // 清除地图上的所有标记和路线
         function clearMap() {
+            if (!mapInitialized) return;
+            
             markers.forEach(marker => map.removeOverlay(marker));
             polylines.forEach(polyline => map.removeOverlay(polyline));
             markers = [];
@@ -396,6 +594,8 @@
 
         // 显示完整路线
         function showFullRoute() {
+            if (!mapInitialized) return;
+            
             clearMap();
             updateActiveButton('完整路线');
             
@@ -456,8 +656,29 @@
                 });
             });
             
-            // 使用百度地图路线规划API绘制导航路线
-            drawNavigationRoute();
+            // 绘制简化路线（避免API调用失败）
+            drawSimpleRoute();
+        }
+
+        // 绘制简化路线
+        function drawSimpleRoute() {
+            try {
+                const points = tripData.map(point => new BMap.Point(point.lon, point.lat));
+                
+                // 创建路线
+                const polyline = new BMap.Polyline(points, {
+                    strokeColor: "#665191",
+                    strokeWeight: 4,
+                    strokeOpacity: 0.8,
+                    strokeStyle: "solid"
+                });
+                
+                map.addOverlay(polyline);
+                polylines.push(polyline);
+                
+            } catch (error) {
+                console.error('路线绘制失败:', error);
+            }
             
             // 调整地图视野以显示所有点
             const bounds = new BMap.Bounds(
@@ -467,76 +688,31 @@
             map.setViewport(bounds);
         }
 
-        // 绘制导航路线
-        function drawNavigationRoute() {
-            // 创建路线规划实例
-            const driving = new BMap.DrivingRoute(map, {
-                renderOptions: {
-                    map: map,
-                    autoViewport: false
-                },
-                policy: BMAP_DRIVING_POLICY_LEAST_TIME
-            });
-            
-            // 构建路线点数组
-            const waypoints = [];
-            for (let i = 1; i < tripData.length - 1; i++) {
-                waypoints.push(new BMap.Point(tripData[i].lon, tripData[i].lat));
+        // 绘制简化路线
+        function drawSimpleRoute() {
+            try {
+                const points = tripData.map(point => new BMap.Point(point.lon, point.lat));
+                
+                // 创建路线
+                const polyline = new BMap.Polyline(points, {
+                    strokeColor: "#665191",
+                    strokeWeight: 4,
+                    strokeOpacity: 0.8,
+                    strokeStyle: "solid"
+                });
+                
+                map.addOverlay(polyline);
+                polylines.push(polyline);
+                
+            } catch (error) {
+                console.error('路线绘制失败:', error);
             }
-            
-            // 设置起点和终点
-            const startPoint = new BMap.Point(tripData[0].lon, tripData[0].lat);
-            const endPoint = new BMap.Point(tripData[tripData.length - 1].lon, tripData[tripData.length - 1].lat);
-            
-            // 规划路线
-            driving.search(startPoint, endPoint, {
-                waypoints: waypoints
-            });
-            
-            // 监听路线规划完成事件
-            driving.setSearchCompleteCallback(function(results) {
-                if (driving.getStatus() == BMAP_STATUS_SUCCESS) {
-                    // 获取路线并自定义样式
-                    const plan = results.getPlan(0);
-                    const route = plan.getRoute(0);
-                    const path = route.getPath();
-                    
-                    // 创建自定义样式的路线
-                    const polyline = new BMap.Polyline(path, {
-                        strokeColor: "#665191",
-                        strokeWeight: 4,
-                        strokeOpacity: 0.8,
-                        strokeStyle: "solid"
-                    });
-                    
-                    map.addOverlay(polyline);
-                    polylines.push(polyline);
-                    
-                    // 添加路线信息
-                    const distance = plan.getDistance(true);
-                    const duration = plan.getDuration(true);
-                    
-                    // 在起点添加路线信息窗口
-                    const routeInfo = new BMap.InfoWindow(`
-                        <div style="padding: 10px; min-width: 200px;">
-                            <h4 style="margin: 0 0 5px 0; color: #003f5c;">完整路线信息</h4>
-                            <p style="margin: 3px 0; font-size: 12px;"><strong>总距离:</strong> ${distance}</p>
-                            <p style="margin: 3px 0; font-size: 12px;"><strong>预计时间:</strong> ${duration}</p>
-                        </div>
-                    `);
-                    
-                    // 在起点标记上添加路线信息
-                    if (markers.length > 0) {
-                        markers[0].addEventListener("click", function() {
-                            map.openInfoWindow(routeInfo, startPoint);
-                        });
-                    }
-                }
-            });
         }
 
         // 显示指定日期的路线
         function showDayRoute(day) {
+            if (!mapInitialized) return;
+            
             clearMap();
             updateActiveButton(`Day ${day}`);
             
@@ -588,50 +764,23 @@
         function drawDayRoute(dayData) {
             if (dayData.length < 2) return;
             
-            // 创建路线规划实例
-            const driving = new BMap.DrivingRoute(map, {
-                renderOptions: {
-                    map: map,
-                    autoViewport: false
-                },
-                policy: BMAP_DRIVING_POLICY_LEAST_TIME
-            });
-            
-            // 设置起点和终点
-            const startPoint = new BMap.Point(dayData[0].lon, dayData[0].lat);
-            const endPoint = new BMap.Point(dayData[dayData.length - 1].lon, dayData[dayData.length - 1].lat);
-            
-            // 如果有中间点，添加途经点
-            const waypoints = [];
-            for (let i = 1; i < dayData.length - 1; i++) {
-                waypoints.push(new BMap.Point(dayData[i].lon, dayData[i].lat));
+            try {
+                const points = dayData.map(point => new BMap.Point(point.lon, point.lat));
+                
+                // 创建路线
+                const polyline = new BMap.Polyline(points, {
+                    strokeColor: "#ff7c43",
+                    strokeWeight: 4,
+                    strokeOpacity: 0.8,
+                    strokeStyle: "solid"
+                });
+                
+                map.addOverlay(polyline);
+                polylines.push(polyline);
+                
+            } catch (error) {
+                console.error('单日路线绘制失败:', error);
             }
-            
-            // 规划路线
-            driving.search(startPoint, endPoint, {
-                waypoints: waypoints
-            });
-            
-            // 监听路线规划完成事件
-            driving.setSearchCompleteCallback(function(results) {
-                if (driving.getStatus() == BMAP_STATUS_SUCCESS) {
-                    // 获取路线并自定义样式
-                    const plan = results.getPlan(0);
-                    const route = plan.getRoute(0);
-                    const path = route.getPath();
-                    
-                    // 创建自定义样式的路线
-                    const polyline = new BMap.Polyline(path, {
-                        strokeColor: "#ff7c43",
-                        strokeWeight: 4,
-                        strokeOpacity: 0.8,
-                        strokeStyle: "solid"
-                    });
-                    
-                    map.addOverlay(polyline);
-                    polylines.push(polyline);
-                }
-            });
         }
 
         // 更新活动按钮状态
@@ -762,8 +911,10 @@
                 }
             });
             
-            // 初始化百度地图
-            initMap();
+            // 延迟初始化地图，确保API加载完成
+            setTimeout(() => {
+                initMap();
+            }, 1000);
 
             // Generate Baidu Map Link
             const baiduMapLink = document.getElementById('baiduMapLink');
