@@ -266,7 +266,7 @@
                         map: map,
                         autoViewport: false
                     },
-                    policy: BMAP_DRIVING_POLICY_LEAST_TIME
+                    policy: 0  // 使用数字0代替BMAP_DRIVING_POLICY_LEAST_TIME
                 });
                 
                 // 设置起点和终点
@@ -295,7 +295,7 @@
                     console.log('路线规划完成，状态:', driving.getStatus());
                     console.log('结果对象:', results);
                     
-                    if (driving.getStatus() == BMAP_STATUS_SUCCESS) {
+                    if (driving.getStatus() == 0) { // 使用数字0代替BMAP_STATUS_SUCCESS
                         try {
                             // 获取路线信息
                             const plan = results.getPlan(0);
