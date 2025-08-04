@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>漠河-内蒙古边境自驾探险之旅 | 交互式行程单</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- 百度地图API -->
+    <script type="text/javascript" src="https://api.map.baidu.com/api?v=3.0&ak=N4BtpP9TDw5VDImqI9oEazOeiPlPQtoH"></script>
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            background-color: #f0f4f8;
+        }
+        #baidu-map {
+            width: 100%;
+            height: 60vh;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .map-controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .map-btn {
+            background-color: #003f5c;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: background-color 0.3s ease;
+        }
+        .map-btn:hover {
+            background-color: #665191;
+        }
+        .map-btn.active {
+            background-color: #f95d6a;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <header class="bg-[#003f5c] text-white text-center py-12 px-4">
+        <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight mb-2">漠河-内蒙古边境自驾探险之旅</h1>
+        <p class="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">地图功能测试版本</p>
+    </header>
+
+    <main class="container mx-auto p-4 md:p-8">
+        
+        <section id="interactive-map" class="bg-white rounded-lg shadow-md p-4 md:p-6 mb-12">
+            <h2 class="text-3xl font-bold text-center mb-2 text-[#003f5c]">交互式路线图</h2>
+            <p class="text-center text-gray-600 mb-6">点击地图上的站点，查看详细信息。</p>
+            
+            <div class="map-controls">
+                <button class="map-btn active" onclick="showFullRoute()">完整路线</button>
+                <button class="map-btn" onclick="showDayRoute(1)">Day 1: 漠河</button>
+                <button class="map-btn" onclick="showDayRoute(2)">Day 2: 北红村</button>
+                <button class="map-btn" onclick="showDayRoute(3)">Day 3: 根河</button>
+                <button class="map-btn" onclick="showDayRoute(4)">Day 4: 恩和</button>
+                <button class="map-btn" onclick="showDayRoute(5)">Day 5: 满洲里</button>
+                <button class="map-btn" onclick="showDayRoute(6)">Day 6: 草原</button>
+                <button class="map-btn" onclick="showDayRoute(7)">Day 7: 海拉尔</button>
+            </div>
+            
+            <div id="baidu-map"></div>
+            
+            <div class="mt-4 p-4 bg-gray-100 rounded">
+                <h3 class="font-bold mb-2">调试信息：</h3>
+                <div id="debug-info"></div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // 百度地图相关变量
+        let map;
+        let markers = [];
+        let polylines = [];
+        let mapInitialized = false;
+
+        // 行程数据
+        const tripData = [
+            { day: 1, name: '漠河市', weather: '5-18°C, 晴间多云', nextStop: '北红村', distance: 230, details: '航班于17:05抵达。当晚入住市区，为次日行程做准备。', lat: 52.9667, lon: 122.5000 },
+            { day: 2, name: '北红村', weather: '4-17°C, 晴朗', nextStop: '根河市', distance: 300, details: '探访中国最北的原始村庄，体验火炕民俗，观赏界江日落和璀璨星空。', lat: 53.6800, lon: 123.3600 },
+            { day: 3, name: '根河市', weather: '6-19°C, 多云', nextStop: '恩和乡', distance: 150, details: '抵达"中国冷极"，参观根河湿地，感受大兴安岭的生态之美。', lat: 50.7800, lon: 121.5100 },
+            { day: 4, name: '恩和乡', weather: '8-20°C, 晴', nextStop: '满洲里', distance: 334, details: '沉浸在俄罗斯民族乡的独特风情中，品尝俄式美食，欣赏木刻楞建筑。', lat: 51.0400, lon: 119.8600 },
+            { day: 5, name: '满洲里', weather: '10-22°C, 晴朗', nextStop: '满洲里/草原', distance: '~100', details: '从恩和出发，途经室韦感受中俄边境风光，最终抵达中俄蒙三国交界的口岸城市。', lat: 49.6000, lon: 117.3800 },
+            { day: 6, name: '满洲里', weather: '10-22°C, 晴朗', nextStop: '海拉尔', distance: 200, details: '探索套娃广场与国门，深度体验呼伦贝尔草原的辽阔。', lat: 49.6000, lon: 117.3800 },
+            { day: 7, name: '海拉尔', weather: '9-21°C, 多云转晴', nextStop: '返程', distance: 0, details: '欣赏莫尔格勒河"天下第一曲水"后，从海拉尔机场返程，结束旅途。', lat: 49.2000, lon: 119.7500 }
+        ];
+
+        const poiData = [
+            { name: '室韦', day: 5, details: '中俄边境风情，漫步额尔古纳河畔，感受中俄文化交融。', lat: 51.3400, lon: 119.9700 }
+        ];
+
+        // 初始化地图
+        function initMap() {
+            try {
+                console.log('开始初始化地图...');
+                
+                if (typeof BMap === 'undefined') {
+                    throw new Error('百度地图API未加载');
+                }
+
+                map = new BMap.Map("baidu-map");
+                console.log('地图对象创建成功');
+                
+                // 设置地图中心点
+                const centerPoint = new BMap.Point(122.5000, 52.9667);
+                map.centerAndZoom(centerPoint, 6);
+                
+                // 添加地图控件
+                map.addControl(new BMap.NavigationControl());
+                map.addControl(new BMap.ScaleControl());
+                map.addControl(new BMap.OverviewMapControl());
+                map.addControl(new BMap.MapTypeControl());
+                
+                // 启用滚轮缩放
+                map.enableScrollWheelZoom(true);
+                
+                mapInitialized = true;
+                console.log('地图初始化完成');
+                
+                // 显示完整路线
+                showFullRoute();
+                
+            } catch (error) {
+                console.error('地图初始化失败:', error);
+                document.getElementById('debug-info').innerHTML = '<p style="color: red;">地图初始化失败: ' + error.message + '</p>';
+            }
+        }
+
+        // 清除地图上的所有标记和路线
+        function clearMap() {
+            if (!mapInitialized) return;
+            
+            markers.forEach(marker => map.removeOverlay(marker));
+            polylines.forEach(polyline => map.removeOverlay(polyline));
+            markers = [];
+            polylines = [];
+        }
+
+        // 创建自定义标记图标
+        function createCustomMarker(point, isPOI = false) {
+            const day = point.day || '';
+            const name = point.name;
+            
+            // 创建SVG图标
+            const svgIcon = `
+                <svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="20" cy="20" r="18" fill="${isPOI ? '#d45087' : '#f95d6a'}" stroke="white" stroke-width="3"/>
+                    <text x="20" y="15" text-anchor="middle" fill="white" font-size="10" font-weight="bold">Day ${day}</text>
+                    <text x="20" y="28" text-anchor="middle" fill="white" font-size="8" font-weight="bold">${name.substring(0, 2)}</text>
+                </svg>
+            `;
+            
+            // 创建自定义图标
+            const icon = new BMap.Icon(svgIcon, new BMap.Size(40, 40), {
+                imageOffset: new BMap.Size(0, 0),
+                anchor: new BMap.Size(20, 20)
+            });
+            
+            return icon;
+        }
+
+        // 显示完整路线
+        function showFullRoute() {
+            if (!mapInitialized) return;
+            
+            clearMap();
+            updateActiveButton('完整路线');
+            
+            console.log('开始显示完整路线...');
+            console.log('tripData:', tripData);
+            console.log('poiData:', poiData);
+            
+            try {
+                // 添加所有站点标记
+                tripData.forEach((point, index) => {
+                    console.log(`添加站点: ${point.name}`);
+                    const customIcon = createCustomMarker(point);
+                    const marker = new BMap.Marker(new BMap.Point(point.lon, point.lat), {
+                        icon: customIcon
+                    });
+                    map.addOverlay(marker);
+                    markers.push(marker);
+                    
+                    // 添加信息窗口
+                    const infoWindow = new BMap.InfoWindow(`
+                        <div style="padding: 15px; min-width: 250px;">
+                            <h4 style="margin: 0 0 8px 0; color: #003f5c; font-size: 16px;">${point.name} (Day ${point.day})</h4>
+                            <div style="background: #f8f9fa; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+                                <p style="margin: 3px 0; font-size: 13px;"><strong>天气:</strong> ${point.weather}</p>
+                                <p style="margin: 3px 0; font-size: 13px;"><strong>下一站:</strong> ${point.nextStop}</p>
+                                <p style="margin: 3px 0; font-size: 13px;"><strong>距离:</strong> ${point.distance} km</p>
+                            </div>
+                        </div>
+                    `);
+                    
+                    marker.addEventListener("click", function() {
+                        map.openInfoWindow(infoWindow, new BMap.Point(point.lon, point.lat));
+                    });
+                });
+                
+                // 添加兴趣点标记
+                poiData.forEach(point => {
+                    console.log(`添加兴趣点: ${point.name}`);
+                    const customIcon = createCustomMarker(point, true);
+                    const marker = new BMap.Marker(new BMap.Point(point.lon, point.lat), {
+                        icon: customIcon
+                    });
+                    map.addOverlay(marker);
+                    markers.push(marker);
+                    
+                    const infoWindow = new BMap.InfoWindow(`
+                        <div style="padding: 15px; min-width: 250px;">
+                            <h4 style="margin: 0 0 8px 0; color: #d45087; font-size: 16px;">${point.name}</h4>
+                            <div style="background: #f8f9fa; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+                                <p style="margin: 3px 0; font-size: 13px;">${point.details}</p>
+                            </div>
+                        </div>
+                    `);
+                    
+                    marker.addEventListener("click", function() {
+                        map.openInfoWindow(infoWindow, new BMap.Point(point.lon, point.lat));
+                    });
+                });
+                
+                // 绘制路线
+                console.log('开始绘制路线...');
+                const points = tripData.map(point => new BMap.Point(point.lon, point.lat));
+                const polyline = new BMap.Polyline(points, {
+                    strokeColor: "#665191",
+                    strokeWeight: 4,
+                    strokeOpacity: 0.8,
+                    strokeStyle: "solid"
+                });
+                map.addOverlay(polyline);
+                polylines.push(polyline);
+                
+                // 调整地图视野
+                const bounds = new BMap.Bounds(
+                    new BMap.Point(117.3800, 49.2000), // 海拉尔
+                    new BMap.Point(123.3600, 53.6800)  // 北红村
+                );
+                map.setViewport(bounds);
+                
+                console.log('完整路线显示完成！');
+                document.getElementById('debug-info').innerHTML = '<p style="color: green;">地图加载成功！已显示 ' + markers.length + ' 个标记和 ' + polylines.length + ' 条路线</p>';
+                
+            } catch (error) {
+                console.error('显示完整路线失败:', error);
+                document.getElementById('debug-info').innerHTML = '<p style="color: red;">显示路线失败: ' + error.message + '</p>';
+            }
+        }
+
+        // 显示指定日期的路线
+        function showDayRoute(day) {
+            if (!mapInitialized) return;
+            
+            clearMap();
+            updateActiveButton(`Day ${day}`);
+            
+            const dayData = tripData.filter(point => point.day === day);
+            if (dayData.length === 0) return;
+            
+            try {
+                // 添加当日站点标记
+                dayData.forEach(point => {
+                    const customIcon = createCustomMarker(point);
+                    const marker = new BMap.Marker(new BMap.Point(point.lon, point.lat), {
+                        icon: customIcon
+                    });
+                    map.addOverlay(marker);
+                    markers.push(marker);
+                    
+                    const infoWindow = new BMap.InfoWindow(`
+                        <div style="padding: 15px; min-width: 250px;">
+                            <h4 style="margin: 0 0 8px 0; color: #003f5c; font-size: 16px;">${point.name} (Day ${point.day})</h4>
+                            <div style="background: #f8f9fa; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+                                <p style="margin: 3px 0; font-size: 13px;"><strong>天气:</strong> ${point.weather}</p>
+                                <p style="margin: 3px 0; font-size: 13px;"><strong>下一站:</strong> ${point.nextStop}</p>
+                                <p style="margin: 3px 0; font-size: 13px;"><strong>距离:</strong> ${point.distance} km</p>
+                            </div>
+                        </div>
+                    `);
+                    
+                    marker.addEventListener("click", function() {
+                        map.openInfoWindow(infoWindow, new BMap.Point(point.lon, point.lat));
+                    });
+                });
+                
+                // 调整地图视野
+                if (dayData.length > 0) {
+                    const centerPoint = new BMap.Point(dayData[0].lon, dayData[0].lat);
+                    map.centerAndZoom(centerPoint, 8);
+                }
+                
+                document.getElementById('debug-info').innerHTML = '<p style="color: green;">显示 Day ' + day + ' 路线，共 ' + markers.length + ' 个标记</p>';
+                
+            } catch (error) {
+                console.error('显示单日路线失败:', error);
+                document.getElementById('debug-info').innerHTML = '<p style="color: red;">显示单日路线失败: ' + error.message + '</p>';
+            }
+        }
+
+        // 更新活动按钮状态
+        function updateActiveButton(buttonText) {
+            document.querySelectorAll('.map-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.textContent.includes(buttonText)) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
+        // 页面加载完成后初始化地图
+        window.onload = function() {
+            setTimeout(initMap, 1000);
+        };
+    </script>
+</body>
+</html> 
