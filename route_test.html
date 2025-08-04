@@ -180,7 +180,7 @@
                         map: map,
                         autoViewport: false
                     },
-                    policy: BMAP_DRIVING_POLICY_LEAST_TIME
+                    policy: 0  // 使用数字0代替BMAP_DRIVING_POLICY_LEAST_TIME
                 });
                 
                 const startPoint = new BMap.Point(testPoints[0].lon, testPoints[0].lat);
@@ -205,7 +205,7 @@
                     console.log('路线规划完成，状态:', driving.getStatus());
                     console.log('结果对象:', results);
                     
-                    if (driving.getStatus() == BMAP_STATUS_SUCCESS) {
+                    if (driving.getStatus() == 0) { // 使用数字0代替BMAP_STATUS_SUCCESS
                         try {
                             const plan = results.getPlan(0);
                             console.log('路线计划:', plan);
