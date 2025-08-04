@@ -123,6 +123,26 @@
         .map-btn.active {
             background-color: #f95d6a;
         }
+        
+        /* 地图标记样式增强 */
+        .BMap_Marker {
+            transition: transform 0.2s ease;
+        }
+        
+        .BMap_Marker:hover {
+            transform: scale(1.1);
+        }
+        
+        /* 信息窗口样式 */
+        .BMap_bubble_title {
+            color: #003f5c !important;
+            font-weight: bold !important;
+        }
+        
+        .BMap_bubble_content {
+            background: #f8f9fa !important;
+            border-radius: 4px !important;
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
@@ -351,6 +371,29 @@
             polylines = [];
         }
 
+        // 创建自定义标记图标
+        function createCustomMarker(point, isPOI = false) {
+            const day = point.day || '';
+            const name = point.name;
+            
+            // 创建SVG图标
+            const svgIcon = `
+                <svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="20" cy="20" r="18" fill="${isPOI ? '#d45087' : '#f95d6a'}" stroke="white" stroke-width="3"/>
+                    <text x="20" y="15" text-anchor="middle" fill="white" font-size="10" font-weight="bold">Day ${day}</text>
+                    <text x="20" y="28" text-anchor="middle" fill="white" font-size="8" font-weight="bold">${name.substring(0, 2)}</text>
+                </svg>
+            `;
+            
+            // 创建自定义图标
+            const icon = new BMap.Icon(svgIcon, new BMap.Size(40, 40), {
+                imageOffset: new BMap.Size(0, 0),
+                anchor: new BMap.Size(20, 20)
+            });
+            
+            return icon;
+        }
+
         // 显示完整路线
         function showFullRoute() {
             clearMap();
@@ -358,19 +401,24 @@
             
             // 添加所有站点标记
             tripData.forEach((point, index) => {
-                const marker = new BMap.Marker(new BMap.Point(point.lon, point.lat));
+                const customIcon = createCustomMarker(point);
+                const marker = new BMap.Marker(new BMap.Point(point.lon, point.lat), {
+                    icon: customIcon
+                });
                 map.addOverlay(marker);
                 markers.push(marker);
                 
                 // 添加信息窗口
                 const infoWindow = new BMap.InfoWindow(`
-                    <div style="padding: 10px;">
-                        <h4 style="margin: 0 0 5px 0; color: #003f5c;">${point.name} (Day ${point.day})</h4>
-                        <p style="margin: 5px 0; font-size: 12px;">天气: ${point.weather}</p>
-                        <p style="margin: 5px 0; font-size: 12px;">下一站: ${point.nextStop}</p>
-                        <p style="margin: 5px 0; font-size: 12px;">距离: ${point.distance} km</p>
+                    <div style="padding: 15px; min-width: 250px;">
+                        <h4 style="margin: 0 0 8px 0; color: #003f5c; font-size: 16px;">${point.name} (Day ${point.day})</h4>
+                        <div style="background: #f8f9fa; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+                            <p style="margin: 3px 0; font-size: 13px;"><strong>天气:</strong> ${point.weather}</p>
+                            <p style="margin: 3px 0; font-size: 13px;"><strong>下一站:</strong> ${point.nextStop}</p>
+                            <p style="margin: 3px 0; font-size: 13px;"><strong>距离:</strong> ${point.distance} km</p>
+                        </div>
                         <button onclick="openModal(${JSON.stringify(point).replace(/"/g, '&quot;')})" 
-                                style="background: #f95d6a; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">
+                                style="background: #f95d6a; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 13px; width: 100%;">
                             查看详情
                         </button>
                     </div>
@@ -383,24 +431,21 @@
             
             // 添加兴趣点标记
             poiData.forEach(point => {
+                const customIcon = createCustomMarker(point, true);
                 const marker = new BMap.Marker(new BMap.Point(point.lon, point.lat), {
-                    icon: new BMap.Symbol(BMap.Symbol.SHAPE_STAR, {
-                        scale: 1.2,
-                        fillColor: "#d45087",
-                        fillOpacity: 0.8,
-                        strokeColor: "#d45087",
-                        strokeWeight: 2
-                    })
+                    icon: customIcon
                 });
                 map.addOverlay(marker);
                 markers.push(marker);
                 
                 const infoWindow = new BMap.InfoWindow(`
-                    <div style="padding: 10px;">
-                        <h4 style="margin: 0 0 5px 0; color: #d45087;">${point.name}</h4>
-                        <p style="margin: 5px 0; font-size: 12px;">${point.details}</p>
+                    <div style="padding: 15px; min-width: 250px;">
+                        <h4 style="margin: 0 0 8px 0; color: #d45087; font-size: 16px;">${point.name}</h4>
+                        <div style="background: #f8f9fa; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+                            <p style="margin: 3px 0; font-size: 13px;">${point.details}</p>
+                        </div>
                         <button onclick="openModal(${JSON.stringify(point).replace(/"/g, '&quot;')})" 
-                                style="background: #d45087; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">
+                                style="background: #d45087; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 13px; width: 100%;">
                             查看详情
                         </button>
                     </div>
@@ -411,18 +456,8 @@
                 });
             });
             
-            // 绘制路线连接线
-            for (let i = 0; i < tripData.length - 1; i++) {
-                const startPoint = new BMap.Point(tripData[i].lon, tripData[i].lat);
-                const endPoint = new BMap.Point(tripData[i + 1].lon, tripData[i + 1].lat);
-                const polyline = new BMap.Polyline([startPoint, endPoint], {
-                    strokeColor: "#665191",
-                    strokeWeight: 3,
-                    strokeOpacity: 0.8
-                });
-                map.addOverlay(polyline);
-                polylines.push(polyline);
-            }
+            // 使用百度地图路线规划API绘制导航路线
+            drawNavigationRoute();
             
             // 调整地图视野以显示所有点
             const bounds = new BMap.Bounds(
@@ -430,6 +465,74 @@
                 new BMap.Point(123.3600, 53.6800)  // 北红村
             );
             map.setViewport(bounds);
+        }
+
+        // 绘制导航路线
+        function drawNavigationRoute() {
+            // 创建路线规划实例
+            const driving = new BMap.DrivingRoute(map, {
+                renderOptions: {
+                    map: map,
+                    autoViewport: false
+                },
+                policy: BMAP_DRIVING_POLICY_LEAST_TIME
+            });
+            
+            // 构建路线点数组
+            const waypoints = [];
+            for (let i = 1; i < tripData.length - 1; i++) {
+                waypoints.push(new BMap.Point(tripData[i].lon, tripData[i].lat));
+            }
+            
+            // 设置起点和终点
+            const startPoint = new BMap.Point(tripData[0].lon, tripData[0].lat);
+            const endPoint = new BMap.Point(tripData[tripData.length - 1].lon, tripData[tripData.length - 1].lat);
+            
+            // 规划路线
+            driving.search(startPoint, endPoint, {
+                waypoints: waypoints
+            });
+            
+            // 监听路线规划完成事件
+            driving.setSearchCompleteCallback(function(results) {
+                if (driving.getStatus() == BMAP_STATUS_SUCCESS) {
+                    // 获取路线并自定义样式
+                    const plan = results.getPlan(0);
+                    const route = plan.getRoute(0);
+                    const path = route.getPath();
+                    
+                    // 创建自定义样式的路线
+                    const polyline = new BMap.Polyline(path, {
+                        strokeColor: "#665191",
+                        strokeWeight: 4,
+                        strokeOpacity: 0.8,
+                        strokeStyle: "solid"
+                    });
+                    
+                    map.addOverlay(polyline);
+                    polylines.push(polyline);
+                    
+                    // 添加路线信息
+                    const distance = plan.getDistance(true);
+                    const duration = plan.getDuration(true);
+                    
+                    // 在起点添加路线信息窗口
+                    const routeInfo = new BMap.InfoWindow(`
+                        <div style="padding: 10px; min-width: 200px;">
+                            <h4 style="margin: 0 0 5px 0; color: #003f5c;">完整路线信息</h4>
+                            <p style="margin: 3px 0; font-size: 12px;"><strong>总距离:</strong> ${distance}</p>
+                            <p style="margin: 3px 0; font-size: 12px;"><strong>预计时间:</strong> ${duration}</p>
+                        </div>
+                    `);
+                    
+                    // 在起点标记上添加路线信息
+                    if (markers.length > 0) {
+                        markers[0].addEventListener("click", function() {
+                            map.openInfoWindow(routeInfo, startPoint);
+                        });
+                    }
+                }
+            });
         }
 
         // 显示指定日期的路线
@@ -442,18 +545,23 @@
             
             // 添加当日站点标记
             dayData.forEach(point => {
-                const marker = new BMap.Marker(new BMap.Point(point.lon, point.lat));
+                const customIcon = createCustomMarker(point);
+                const marker = new BMap.Marker(new BMap.Point(point.lon, point.lat), {
+                    icon: customIcon
+                });
                 map.addOverlay(marker);
                 markers.push(marker);
                 
                 const infoWindow = new BMap.InfoWindow(`
-                    <div style="padding: 10px;">
-                        <h4 style="margin: 0 0 5px 0; color: #003f5c;">${point.name} (Day ${point.day})</h4>
-                        <p style="margin: 5px 0; font-size: 12px;">天气: ${point.weather}</p>
-                        <p style="margin: 5px 0; font-size: 12px;">下一站: ${point.nextStop}</p>
-                        <p style="margin: 5px 0; font-size: 12px;">距离: ${point.distance} km</p>
+                    <div style="padding: 15px; min-width: 250px;">
+                        <h4 style="margin: 0 0 8px 0; color: #003f5c; font-size: 16px;">${point.name} (Day ${point.day})</h4>
+                        <div style="background: #f8f9fa; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+                            <p style="margin: 3px 0; font-size: 13px;"><strong>天气:</strong> ${point.weather}</p>
+                            <p style="margin: 3px 0; font-size: 13px;"><strong>下一站:</strong> ${point.nextStop}</p>
+                            <p style="margin: 3px 0; font-size: 13px;"><strong>距离:</strong> ${point.distance} km</p>
+                        </div>
                         <button onclick="openModal(${JSON.stringify(point).replace(/"/g, '&quot;')})" 
-                                style="background: #f95d6a; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">
+                                style="background: #f95d6a; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 13px; width: 100%;">
                             查看详情
                         </button>
                     </div>
@@ -464,11 +572,66 @@
                 });
             });
             
+            // 如果是多日行程，绘制当日路线
+            if (dayData.length > 1) {
+                drawDayRoute(dayData);
+            }
+            
             // 调整地图视野
             if (dayData.length > 0) {
                 const centerPoint = new BMap.Point(dayData[0].lon, dayData[0].lat);
                 map.centerAndZoom(centerPoint, 8);
             }
+        }
+
+        // 绘制单日路线
+        function drawDayRoute(dayData) {
+            if (dayData.length < 2) return;
+            
+            // 创建路线规划实例
+            const driving = new BMap.DrivingRoute(map, {
+                renderOptions: {
+                    map: map,
+                    autoViewport: false
+                },
+                policy: BMAP_DRIVING_POLICY_LEAST_TIME
+            });
+            
+            // 设置起点和终点
+            const startPoint = new BMap.Point(dayData[0].lon, dayData[0].lat);
+            const endPoint = new BMap.Point(dayData[dayData.length - 1].lon, dayData[dayData.length - 1].lat);
+            
+            // 如果有中间点，添加途经点
+            const waypoints = [];
+            for (let i = 1; i < dayData.length - 1; i++) {
+                waypoints.push(new BMap.Point(dayData[i].lon, dayData[i].lat));
+            }
+            
+            // 规划路线
+            driving.search(startPoint, endPoint, {
+                waypoints: waypoints
+            });
+            
+            // 监听路线规划完成事件
+            driving.setSearchCompleteCallback(function(results) {
+                if (driving.getStatus() == BMAP_STATUS_SUCCESS) {
+                    // 获取路线并自定义样式
+                    const plan = results.getPlan(0);
+                    const route = plan.getRoute(0);
+                    const path = route.getPath();
+                    
+                    // 创建自定义样式的路线
+                    const polyline = new BMap.Polyline(path, {
+                        strokeColor: "#ff7c43",
+                        strokeWeight: 4,
+                        strokeOpacity: 0.8,
+                        strokeStyle: "solid"
+                    });
+                    
+                    map.addOverlay(polyline);
+                    polylines.push(polyline);
+                }
+            });
         }
 
         // 更新活动按钮状态
